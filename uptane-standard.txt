@@ -89,23 +89,23 @@ Table of Contents
        5.1.4.  The Timestamp role  . . . . . . . . . . . . . . . . .  12
      5.2.  Metadata abstract syntax  . . . . . . . . . . . . . . . .  13
        5.2.1.  Common Metadata Structures and Formats  . . . . . . .  13
-       5.2.2.  Root Metadata . . . . . . . . . . . . . . . . . . . .  13
-       5.2.3.  Targets Metadata  . . . . . . . . . . . . . . . . . .  13
-       5.2.4.  Snapshot Metadata . . . . . . . . . . . . . . . . . .  13
-       5.2.5.  Timestamp Metadata  . . . . . . . . . . . . . . . . .  13
-       5.2.6.  The map file  . . . . . . . . . . . . . . . . . . . .  13
-       5.2.7.  Rules for filenames in repositories and metadata  . .  13
-       5.2.8.  Vehicle version manifest  . . . . . . . . . . . . . .  14
-     5.3.  Server / repository implementation requirements . . . . .  14
-       5.3.1.  Image Repository  . . . . . . . . . . . . . . . . . .  15
-       5.3.2.  Director Repository . . . . . . . . . . . . . . . . .  15
-       5.3.3.  Time Server . . . . . . . . . . . . . . . . . . . . .  17
-     5.4.  In-vehicle implementation requirements  . . . . . . . . .  18
-       5.4.1.  Build-time prerequisite requirements for ECUs . . . .  18
-       5.4.2.  Downloading and distributing updates on a primary ECU  19
-       5.4.3.  Installing images on ECUs . . . . . . . . . . . . . .  21
-       5.4.4.  Metadata verification . . . . . . . . . . . . . . . .  23
-   6.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  30
+       5.2.2.  Root Metadata . . . . . . . . . . . . . . . . . . . .  15
+       5.2.3.  Targets Metadata  . . . . . . . . . . . . . . . . . .  16
+       5.2.4.  Snapshot Metadata . . . . . . . . . . . . . . . . . .  20
+       5.2.5.  Timestamp Metadata  . . . . . . . . . . . . . . . . .  20
+       5.2.6.  The map file  . . . . . . . . . . . . . . . . . . . .  20
+       5.2.7.  Rules for filenames in repositories and metadata  . .  20
+       5.2.8.  Vehicle version manifest  . . . . . . . . . . . . . .  22
+       5.2.9.  The map file  . . . . . . . . . . . . . . . . . . . .  22
+     5.3.  Server / repository implementation requirements . . . . .  23
+       5.3.1.  Image Repository  . . . . . . . . . . . . . . . . . .  23
+       5.3.2.  Director Repository . . . . . . . . . . . . . . . . .  24
+       5.3.3.  Time Server . . . . . . . . . . . . . . . . . . . . .  26
+     5.4.  In-vehicle implementation requirements  . . . . . . . . .  26
+       5.4.1.  Build-time prerequisite requirements for ECUs . . . .  27
+       5.4.2.  Downloading and distributing updates on a primary ECU  27
+       5.4.3.  Installing images on ECUs . . . . . . . . . . . . . .  29
+       5.4.4.  Metadata verification . . . . . . . . . . . . . . . .  32
 
 
 
@@ -114,9 +114,11 @@ Cappos                    Expires March 1, 2019                 [Page 2]
 Internet-Draft                   UPTANE                      August 2018
 
 
-     6.1.  Normative References  . . . . . . . . . . . . . . . . . .  30
-     6.2.  Informative References  . . . . . . . . . . . . . . . . .  32
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  33
+   6.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  39
+     6.1.  Normative References  . . . . . . . . . . . . . . . . . .  39
+     6.2.  Informative References  . . . . . . . . . . . . . . . . .  40
+     6.3.  URIs  . . . . . . . . . . . . . . . . . . . . . . . . . .  41
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  41
 
 1.  Introduction
 
@@ -160,8 +162,6 @@ Internet-Draft                   UPTANE                      August 2018
    verifies update images and metadata for itself and for secondary
    ECUs, and distributes images and metadata to secondaries.  Thus, it
    requires extra storage space and a connection to the internet.
-   Secondary ECUs receive their update images and metadata from the
-
 
 
 
@@ -170,6 +170,7 @@ Cappos                    Expires March 1, 2019                 [Page 3]
 Internet-Draft                   UPTANE                      August 2018
 
 
+   Secondary ECUs receive their update images and metadata from the
    primary, and only need to verify and install their own metadata and
    images.
    _Repository_: A server containing metadata about images.  May also
@@ -217,7 +218,6 @@ Internet-Draft                   UPTANE                      August 2018
    This Standards document clarifies the essential components and best
    practices for the secure design implementation and deployment of
    Uptane by OEMs and suppliers.  These practices contribute to
-
 
 
 
@@ -676,17 +676,431 @@ Internet-Draft                   UPTANE                      August 2018
 
 5.2.  Metadata abstract syntax
 
+   Metadata files on a repository SHOULD be written using the ASN.1
+   abstract syntax specified in this section.  These files MAY be
+   encoded and decoded using any transfer syntax that an OEM desires
+   (e.g., BER, CER, DER, JSON, OER, PER, XER).
+
 5.2.1.  Common Metadata Structures and Formats
+
+   Metadata files SHOULD share the data structures in this section.
+   These data structures specify how information, such as cryptographic
+   hashes, digital signatures, and public keys, should be encoded.
+
+   This is An ASN.1 module that defines common data structures used by
+   metadata files.
+
+   ``` CommonModule DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+   EXPORTS ALL;
+
+   RoleType ::= ENUMERATED {root, targets, snapshot, timestamp}
+
+   - String types.  Filename ::= VisibleString (SIZE(1..32)) - No known
+   path separator allowed in a strict filename.  StrictFilename ::=
+   VisibleString (SIZE(1..32)) (PATTERN "[^/\]+") BitString ::= BIT
+   STRING (SIZE(1..1024)) OctetString ::= OCTET STRING (SIZE(1..1024))
+   HexString ::= VisibleString (SIZE(1..1024)) (PATTERN "[0-9a-f]+") -
+   Table 1 of RFC 4648.  Base64String ::= VisibleString (SIZE(1..1024))
+   (PATTERN "[A-Za-z0-9+/=]+") - Adjust length of SEQUENCE OF to your
+   needs.  Paths ::= SEQUENCE (SIZE(1..8)) OF Path Path ::=
+   VisibleString (SIZE(1..32)) (PATTERN "[\w*\/]+") - Adjust length of
+   SEQUENCE OF to your needs.  URLs ::= SEQUENCE (SIZE(0..8)) OF URL URL
+   ::= VisibleString (SIZE(1..1024)) - A generic identifier for
+   vehicles, primaries, secondaries.  Identifier ::= VisibleString
+   (SIZE(1..32))
+
+   Natural ::= INTEGER (0..MAX) Positive ::= INTEGER (1..MAX) Length ::=
+   Positive Threshold ::= Positive Version ::= Positive - The date and
+   time in UTC encoded as a UNIX timestamp.  UTCDateTime ::= Positive
+
+   BinaryData ::= CHOICE { bitString BitString, octetString OctetString,
+   hexString HexString, base64String Base64String }
+
+   - Adjust length of SEQUENCE OF to your needs.  Hashes ::= SEQUENCE
+   (SIZE(1..8)) OF Hash Hash ::= SEQUENCE { function HashFunction,
+   digest BinaryData } HashFunction ::= ENUMERATED {sha224, sha256,
+   sha384, sha512, sha512-224, sha512-256, ...}
+
+
+
+
+Cappos                    Expires March 1, 2019                [Page 13]
+
+Internet-Draft                   UPTANE                      August 2018
+
+
+   - Adjust length of SEQUENCE OF to your needs.  Keyids ::= SEQUENCE
+   (SIZE(1..8)) OF Keyid - Usually, a hash of a public key.  Keyid ::=
+   HexString
+
+   - Adjust length of SEQUENCE OF to your needs.  Signatures ::=
+   SEQUENCE (SIZE(1..8)) OF Signature Signature ::= SEQUENCE { keyid
+   Keyid, method SignatureMethod, - For efficient checking, sign the
+   hash of the message instead of the - message itself.  hash Hash, -
+   The signature itself.  value HexString } SignatureMethod ::=
+   ENUMERATED {rsassa-pss, ed25519, ...}
+
+   - Adjust length of SEQUENCE OF to your needs.  PublicKeys ::=
+   SEQUENCE (SIZE(1..8)) OF PublicKey PublicKey ::= SEQUENCE {
+   publicKeyid Keyid, publicKeyType PublicKeyType, publicKeyValue
+   BinaryData } PublicKeyType ::= ENUMERATED {rsa, ed25519, ...}
+
+   END ``` An OEM MAY use any hash function ("Hash.function"; e.g., SHA-
+   2) and signature scheme ("Signature.method"; e.g., RSASSA-PSS [1],
+   Ed25519 [2]).
+
+   A hash digest ("Hash.digest"), signature ("Signature.sig"), or public
+   key ("PublicKey.keyval") SHOULD be encoded as either a bit, octet,
+   hexadecimal, or Base64 string.  For example, an RSA public key MAY be
+   encoded using the PEM format, whereas an Ed25519 public key MAY be
+   encoded as a hexadecimal string.
+
+   Every public key has a unique identifier ("PublicKey.keyid").  This
+   identifier MAY be, for example, the SHA-256 hash of the public key.
+
+   An ECU SHOULD verify that each "Keyids", "Hashes", "Signatures", and
+   "PublicKeys" sequence contains unique "KeyId", "Hash.function",
+   "Signature.keyid", and "PublicKey.keyid" values, respectively.  The
+   ECU MAY reject a sequence containing duplicate values, or simply
+   ignore such values.
+
+   Every metadata file contains three parts: a signed message
+   ("Signed"), the number of signatures on the following message
+   ("numberOfSignatures"), and a sequence of signatures for the message
+   ("Signatures").
+
+   The signed message is a sequence of four attributes: (1) "type", an
+   enumerated type of the metadata (i.e., root, targets, snapshot, or
+   timestamp), (2) "expires", an expiration date and time for the
+   metadata (specified using the ISO 8601 format), (3) "version", a
+   version number, and (4) "body", the role-specific metadata.  The
+   version number SHOULD be incremented every time the metadata file is
+   updated.  The attributes of role-specific metadata will be discussed
+   in the rest of this section.
+
+
+
+Cappos                    Expires March 1, 2019                [Page 14]
+
+Internet-Draft                   UPTANE                      August 2018
+
+
+   Signatures SHOULD be computed over the hash of the signed message,
+   instead of the signed message itself.
+
+   Below is an example of the metadata format common to all metadata.
+   All metadata SHOULD follow this format.  ``` MetadataModule
+   DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+   EXPORTS Metadata;
+
+   - https://sourceforge.net/p/asn1c/discussion/357921/thread/aced2512/
+   IMPORTS Length, Positive, RoleType, Signatures, UTCDateTime FROM
+   CommonModule RootMetadata FROM RootModule TargetsMetadata FROM
+   TargetsModule SnapshotMetadata FROM SnapshotModule TimestampMetadata
+   FROM TimestampModule;
+
+   Metadata ::= SEQUENCE { signed Signed, numberOfSignatures Length,
+   signatures Signatures } Signed ::= SEQUENCE { type RoleType, expires
+   UTCDateTime, version Positive, body SignedBody } SignedBody ::=
+   CHOICE { rootMetadata RootMetadata, targetsMetadata TargetsMetadata,
+   snapshotMetadata SnapshotMetadata, timestampMetadata
+   TimestampMetadata }
+
+   END ```
 
 5.2.2.  Root Metadata
 
+   The root metadata distributes and revokes the public keys of the top-
+   level root, targets, snapshot, and timestamp roles.  These keys are
+   revoked and replaced by changing the public keys specified in the
+   root metadata.  This metadata is signed using the root role's private
+   keys.
+
+   The root metadata contains two important attributes.  First, the
+   "keys" attribute lists the public keys used by the root, targets,
+   snapshot, and timestamp roles.  Second, the "roles" attribute maps
+   each of the four roles to: (1) the URL pointing to its metadata file,
+   (2) its public keys, and (3) the threshold number of keys required to
+   sign the metadata file.  An empty sequence of URLs denotes that the
+   metadata file SHALL NOT be updated.  An ECU SHOULD verify that each
+   of the four roles has been defined exactly once in the metadata.
+
+   Here is the ASN.1 definition for the body of the root metadata.  ```
+   RootModule DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+   EXPORTS RootMetadata;
+
+   IMPORTS Keyids, Length, PublicKeys, RoleType, Threshold, URLs FROM
+   CommonModule;
+
+
+
+Cappos                    Expires March 1, 2019                [Page 15]
+
+Internet-Draft                   UPTANE                      August 2018
+
+
+   RootMetadata ::= SEQUENCE { numberOfKeys Length, keys PublicKeys,
+   numberOfRoles Length, roles TopLevelRoles, -
+   https://tools.ietf.org/html/rfc6025#section-2.4.2 ... } - Adjust
+   length of SEQUENCE OF to your needs.  TopLevelRoles ::= SEQUENCE
+   (SIZE(4)) OF TopLevelRole TopLevelRole ::= SEQUENCE { role RoleType,
+   - TAP 5: The URLs pointing to the metadata file for this role.
+   numberOfURLs Length OPTIONAL, urls URLs OPTIONAL, numberOfKeyids
+   Length, keyids Keyids, threshold Threshold, ... }
+
+   END ```
+
 5.2.3.  Targets Metadata
+
+   At a minimum, a targets metadata file contains metadata (i.e.,
+   filename, hashes, length) about unencrypted images on a repository.
+   The file MAY also contain two optional pieces of information: (1)
+   custom metadata about which images should be installed by which ECUs,
+   and whether encrypted images are available, and / or (2) other
+   delegated targets roles that have been entrusted to sign images.
+   This file is signed using the private keys of either the top-level
+   targets role or a delegated targets role.
+
+   The following example specifies all of the REQUIRED as well as all of
+   the RECOMMENDED attributes for the body of targets metadata.  ```
+   TargetsModule DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+   EXPORTS TargetsMetadata, Target;
+
+   IMPORTS BinaryData, Filename, Hashes, Identifier, Keyids, Length,
+   Natural, Paths, Positive, PublicKeys, StrictFilename, Threshold FROM
+   CommonModule;
+
+   TargetsMetadata ::= SEQUENCE { - Allowed to have no targets at all.
+   numberOfTargets Natural, - Metadata about unencrypted images on a
+   repository.  targets Targets, - Delegations are optional.
+   delegations TargetsDelegations OPTIONAL, -
+   https://tools.ietf.org/html/rfc6025#section-2.4.2 ... }
+
+   - Adjust length of SEQUENCE OF to your needs.  Targets ::= SEQUENCE
+   (SIZE(1..128)) OF TargetAndCustom TargetAndCustom ::= SEQUENCE { -
+   The filename, length, and hashes of unencrypted images on a
+   repository.  target Target, - This attribute is used to specify
+   additional information, such as which - images should be installed by
+   which ECUs, and metadata about encrypted - images.  custom Custom
+   OPTIONAL } Target ::= SEQUENCE { fileDownloadUrl URL, filename
+   Filename, length Length, numberOfHashes Length, hashes Hashes }
+   Custom ::= SEQUENCE { - NOTE: The following attributes are specified
+   by both the image and - director repositories.  - The release counter
+
+
+
+Cappos                    Expires March 1, 2019                [Page 16]
+
+Internet-Draft                   UPTANE                      August 2018
+
+
+   is used to prevent rollback attacks on images when - only the
+   director repository is compromised.  - Every ECU should check that
+   the release counter of its latest image is - greater than or equal to
+   the release counter of its previous image.  releaseCounter Natural
+   OPTIONAL, - The hardware identifier is used to prevent the director
+   repository, - when it is compromised, from choosing images for an ECU
+   that were not - meant for it.  - Every ECU should check that the
+   hardware ID of its latest image matches - its hardware ID.  - An OEM
+   MAY define other types of information to further restrict the -
+   choices that can be made by a compromised director repository.
+   hardwareIdentifier Identifier OPTIONAL, - NOTE: The following
+   attributes are specified only by the director - repository.  - The
+   ECU identifier specifies information, e.g., serial numbers, that the
+   - director uses to point ECUs as to which images they should install.
+   - Every ECU should check that the ECU ID of its latest image matches
+   its - own ECU ID.  ecuIdentifier Identifier OPTIONAL, - This
+   attribute MAY be used by the director to encrypt images per ECU.
+   encryptedTarget Target OPTIONAL, - This attribute MAY be used if ECU
+   keys are asymmetric, and a per-image - symmetric encryption key is
+   desired for faster decryption of images.  - In that case, the
+   director would use the asymmetric ECU key to encrypt - this symmetric
+   key.  encryptedSymmetricKey EncryptedSymmetricKey OPTIONAL, ... }
+   EncryptedSymmetricKey ::= SEQUENCE { - This is the symmetric key
+   type.  encryptedSymmetricKeyType EncryptedSymmetricKeyType, - This is
+   the symmetric key encrypted using the asymmetric ECU key.
+   encryptedSymmetricKeyValue BinaryData } EncryptedSymmetricKeyType ::=
+   ENUMERATED {aes128, aes192, aes256, ...}
+
+   - https://github.com/theupdateframework/taps/blob/master/tap3.md
+   TargetsDelegations ::= SEQUENCE { - The public keys of all
+   delegatees.  numberOfKeys Length, keys PublicKeys, - The role name,
+   filename, public keys, and threshold of a delegatee.
+   numberOfDelegations Length, - A list of paths to roles, listed in
+   order of priority.  delegations PrioritizedPathsToRoles }
+
+   - Adjust length of SEQUENCE OF to your needs.
+   PrioritizedPathsToRoles ::= SEQUENCE (SIZE(1..8)) OF PathsToRoles
+   PathsToRoles ::= SEQUENCE { - A list of image/target paths entrusted
+   to these roles.  numberOfPaths Length, paths Paths, - A list of roles
+   required to sign the same metadata about the matching - targets/
+   images.  numberOfRoles Length, roles MultiRoles, - Whether or not
+   this delegation is terminating.  terminating BOOLEAN DEFAULT FALSE }
+
+   - Adjust length of SEQUENCE OF to your needs.  MultiRoles ::=
+   SEQUENCE (SIZE(1..8)) OF MultiRole MultiRole ::= SEQUENCE { - The
+   rolename (e.g., "supplierA-dev").  - No known path separator allowed
+   in a rolename.  rolename StrictFilename, - The public keys used by
+
+
+
+
+Cappos                    Expires March 1, 2019                [Page 17]
+
+Internet-Draft                   UPTANE                      August 2018
+
+
+   this role.  numberOfKeyids Length, keyids Keyids, - The threshold
+   number of these keys.  threshold Threshold }
+
+   END ```
 
 5.2.3.1.  Metadata about Images
 
+   At the very least, a targets metadata file MUST contain the
+   "TargetsMetadata.targets" attribute, which specifies a sequence of
+   unencrypted images.  An empty sequence is used to indicate that no
+   targets/images are available.  For every unencrypted image, its
+   filename, version number, length, and hashes are listed using the
+   "Target" sequence.  An ECU SHOULD verify that each unencrypted image
+   has been defined exactly once in the metadata file.
+
+   The unencrypted image SHOULD also be associated with additional
+   information using the "Custom" sequence.  The following attributes
+   SHOULD be specified by both the image and director repositories.  The
+   "Custom.releaseCounter" attribute is used to prevent rollback attacks
+   when the director repository is compromised.  The director repository
+   cannot choose images for an ECU with a release counter that is lower
+   than the release counter of the image it has currently installed.
+   The "Custom.hardwareIdentifier" attribute is used to prevent a
+   compromised director repository from causing ECUs to install images
+   that were not intended for them.  For example, this attribute MAY be
+   the ECU part number.  The OEM and its suppliers MAY define other
+   attributes that can be used by ECUs to further restrict which types
+   of images they are allowed to install.
+
+   The following attributes SHOULD be specified by the director
+   repository.  The "Custom.ecuIdentifier" attribute specifies the
+   identifier (e.g., serial number) of the ECU that should install this
+   image.  An ECU SHOULD verify that each ECU identifier has been
+   defined exactly once in the metadata file.  If the director
+   repository wishes to publish per-ECU encrypted images, then the
+   "Custom.encryptedTarget" attribute MAY be used to specify metadata
+   about the encrypted images.  An ECU MUST then download the encrypted
+   image, check its metadata, decrypt the image, and check its metadata
+   again.  Finally, if an ECU key is an asymmetric public key, the
+   director repository MAY use a _symmetric_ private key to reduce the
+   time used to decrypt the image.  To do so, the director repository
+   MAY use the _asymmetric_ ECU key to encrypt, e.g., a private AES
+   symmetric key, and place the encrypted key in the
+   "Custom.encryptedSymmetricKey" attribute.
+
+
+
+
+
+
+
+Cappos                    Expires March 1, 2019                [Page 18]
+
+Internet-Draft                   UPTANE                      August 2018
+
+
 5.2.3.2.  Metadata about Delegations
 
+   Besides directly signing metadata about images, the targets role MAY
+   delegate this responsibility to delegated targets roles.  To do so,
+   the targets role uses the OPTIONAL "TargetsMetadata.delegations"
+   attribute.  If this attribute is not used, then it means that there
+   are no delegations.
+
+   The "TargetsDelegations.keys" attribute lists all of the public keys
+   used by the delegated targets roles in the current targets metadata
+   file.  An ECU SHOULD verify that each public key (identified by its
+   "Keyid") has been defined exactly once in the metadata file.
+
+   The "TargetsDelegations.delegations" attribute lists all of the
+   delegations in the current targets metadata file.  All delegations
+   are prioritized: a sequence is used to list delegations in order of
+   appearance, so that the earlier the appearance of a delegation, the
+   higher its priority.  Every delegation contains three important
+   attributes.
+
+   The "PathsToRoles.paths" attribute describes a sequence of target/
+   image paths that the delegated roles are trusted to provide.  A
+   desired target/image needs to match only one of these paths for the
+   delegation to apply.  A path MAY be either to a single file, or to a
+   directory to indicate all files and / or subdirectories under that
+   directory.  A path to a directory is used to indicate all possible
+   targets sharing that directory as a prefix; e.g. if the directory is
+   "targets/A," then targets which match that directory include
+   "targets/A/B.img" and "targets/A/B/C.img."
+
+   The "PathsToRoles.roles" attribute describes all of the roles that
+   SHALL sign the same non-custom metadata (i.e., filename, length, and
+   hashes of unencrypted images) about delegated targets/images.  Every
+   delegated targets role has (1) a name, (2) a set of public keys, and
+   (3) a threshold of these keys required to verify its metadata file.
+
+   Note that a role name SHOULD follow the filename restrictions of the
+   underlying file storage mechanism.  For example, it may be "director"
+   or "targets/director."  As discussed in Section 3.7, the role name
+   will determine part of the actual metadata filename of the delegated
+   targets role.  If it is "director" or "targets/director," then its
+   delegated targets metadata file MAY use the filename "director.ext"
+   or "targets/director.ext," respectively.  However, the role name
+   SHALL NOT use the path separator (e.g., "/" or "\") if it is a
+   character used to separate directories on the underlying file storage
+   mechanism.  In other words, all targets metadata files are implicitly
+   assumed to reside in the same directory.  It is safe to use this
+
+
+
+
+Cappos                    Expires March 1, 2019                [Page 19]
+
+Internet-Draft                   UPTANE                      August 2018
+
+
+   character in key-value databases or stores that do not have a notion
+   of directories (e.g., Amazon S3).
+
+   Finally, the "PathsToRoles.terminating" attribute determines whether
+   or not a backtracking search for a target/image should be terminated.
+
+   The metadata file for a delegated targets role SHALL have exactly the
+   same format as for the top-level targets role.  For example, the
+   metadata file for a supplier role has precisely the same format as
+   the the top-level targets role.
+
 5.2.4.  Snapshot Metadata
+
+   The snapshot metadata lists the version numbers of all targets
+   metadata files on the repository.  It is signed using the snapshot
+   role keys, and follows the format specified here.  ``` SnapshotModule
+   DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+   EXPORTS SnapshotMetadata;
+
+   IMPORTS Length, Hashes, StrictFilename, Version FROM CommonModule;
+
+   - Adjust length of SEQUENCE OF to your needs.  SnapshotMetadata ::=
+   SEQUENCE { numberOfSnapshotMetadataFiles Length,
+   snapshotMetadataFiles SnapshotMetadataFiles } SnapshotMetadataFiles
+   ::= SEQUENCE (SIZE(1..128)) OF SnapshotMetadataFile
+   SnapshotMetadataFile ::= SEQUENCE { filename StrictFilename, version
+   Version, - https://tools.ietf.org/html/rfc6025#section-2.4.2 ... }
+
+   END ``` The "filename" attribute specifies a metadata file's relative
+   path from the metadata root of a repository, and SHALL NOT contain a
+   path separator.
+
+   An ECU SHOULD verify that each filename has been defined exactly once
+   in the snapshot metadata file.
 
 5.2.5.  Timestamp Metadata
 
@@ -699,6 +1113,14 @@ Internet-Draft                   UPTANE                      August 2018
    order to avoid race conditions, where metadata and images are read
    from and written to at the same time.  For more details, the reader
    should read the TUF specification [TUF-spec] and PEP 458 [PEP-458].
+
+
+
+
+Cappos                    Expires March 1, 2019                [Page 20]
+
+Internet-Draft                   UPTANE                      August 2018
+
 
    Unless stated otherwise, all metadata files SHALL be written as such
    to a repository.  If a metadata file A was specified as FILENAME.EXT
@@ -722,14 +1144,6 @@ Internet-Draft                   UPTANE                      August 2018
    read from and written to a repository using a filename that is not
    qualified with a version number (i.e., FILENAME.EXT).  As we will see
    in Section 5.3.2, this is the case with the timestamp metadata file
-
-
-
-Cappos                    Expires March 1, 2019                [Page 13]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
    on the image repository, but not the director repository.  Second,
    the root metadata SHALL also be read from and written to a repository
    using a filename that is not qualified with a version number (i.e.,
@@ -757,6 +1171,13 @@ Internet-Draft                   UPTANE                      August 2018
    target files downloaded from a repository SHALL be kept in a separate
    directory on an ECU from the latest set of files.
 
+
+
+Cappos                    Expires March 1, 2019                [Page 21]
+
+Internet-Draft                   UPTANE                      August 2018
+
+
    For example, the previous set of metadata and target files MAY be
    kept in the "previous" directory on an ECU, whereas the latest set of
    files MAY be kept in the "current" directory.
@@ -764,6 +1185,79 @@ Internet-Draft                   UPTANE                      August 2018
 5.2.8.  Vehicle version manifest
 
 5.2.8.1.  ECU version report
+
+   The timestamp metadata specifies metadata (e.g., filename and version
+   number) about the snapshot metadata file.  It is signed using the
+   timestamp role keys, and follows the format below.  ```
+   TimestampModule DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+   EXPORTS TimestampMetadata;
+
+   IMPORTS Filename, Hashes, Length, Version FROM CommonModule;
+
+   TimestampMetadata ::= SEQUENCE { filename Filename, version Version,
+   length Length, numberOfHashes Length, hashes Hashes, -
+   https://tools.ietf.org/html/rfc6025#section-2.4.2 ... }
+
+   END ```
+
+5.2.9.  The map file
+
+   The map file specifies which images should be downloaded from which
+   repositories.  In most deployment scenarios for full verification
+   ECUs, this will mean downloading images from both the image and
+   director repositories.  It is not signed, and follows the format
+   specified here.  ``` MapFileModule DEFINITIONS AUTOMATIC TAGS ::=
+   BEGIN
+
+   IMPORTS Length, Paths, StrictFilename, URLs FROM CommonModule;
+
+   - https://github.com/theupdateframework/taps/blob/master/tap4.md
+   MapFile ::= SEQUENCE { - A list of repositories.
+   numberOfRepositories Length, repositories Repositories, -A list of
+   mapping of images to repositories.  numberOfMappings Length, mappings
+   Mappings }
+
+   - Adjust length of SEQUENCE OF to your needs.  Repositories ::=
+   SEQUENCE (SIZE(2)) OF Repository Repository ::= SEQUENCE { - A
+   shorthand name for the repository, which also specifies the name of
+   the - directory on the client which contains previous and latest
+   metadata.  name RepositoryName, - A list of servers where metadata
+   and targets may be downloaded from.  numberOfServers Length, servers
+   URLs, - https://tools.ietf.org/html/rfc6025#section-2.4.2 ... } -
+   Adjust length of SEQUENCE OF to your needs.  RepositoryNames ::=
+
+
+
+Cappos                    Expires March 1, 2019                [Page 22]
+
+Internet-Draft                   UPTANE                      August 2018
+
+
+   SEQUENCE (SIZE(2)) OF RepositoryName RepositoryName ::=
+   StrictFilename
+
+   - Adjust length of SEQUENCE OF to your needs.  Mappings ::= SEQUENCE
+   (SIZE(1)) OF Mapping Mapping ::= SEQUENCE { - The list of targets
+   delegated to the following repositories.  numberOfPaths Length, paths
+   Paths, - The repositories which MUST all sign the preceeding targets.
+   numberOfRepositories Length, repositories RepositoryNames, - Whether
+   or not this delegation is terminating.  terminating BOOLEAN DEFAULT
+   FALSE, - https://tools.ietf.org/html/rfc6025#section-2.4.2 ... }
+
+   END ``` The "MapFile.repositories" attribute specifies a list of
+   available repositories.  For each repository, a short-hand name, and
+   a list of servers where metadata and targets may be downloaded from,
+   are specified.  The short-hand name also specifies the metadata
+   directory on an ECU containing the previous and current sets of
+   metadata files.
+
+   The "MapFile.mappings" attribute specifies which images are mapped to
+   which repositories.  An OEM MAY map the same set of images to
+   multiple repositories.  Typically, an OEM would map all images to
+   both the image and director repositories.  See the deployment
+   considerations document for other configurations, especially with
+   regard to fleet management.
 
 5.3.  Server / repository implementation requirements
 
@@ -776,16 +1270,6 @@ Internet-Draft                   UPTANE                      August 2018
 
    o  Time server
 
-
-
-
-
-
-Cappos                    Expires March 1, 2019                [Page 14]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
 5.3.1.  Image Repository
 
    The Image repository exists to allow an OEM and/or its suppliers to
@@ -796,6 +1280,15 @@ Internet-Draft                   UPTANE                      August 2018
 
    The Image repository SHALL expose an interface permitting the
    download of metadata and images.  This interface SHOULD be public.
+
+
+
+
+
+Cappos                    Expires March 1, 2019                [Page 23]
+
+Internet-Draft                   UPTANE                      August 2018
+
 
    The Image repository SHALL require authorization for writing metadata
    and images.
@@ -832,16 +1325,6 @@ Internet-Draft                   UPTANE                      August 2018
    filesystem, key-value store, or database that fulfills this
    requirement.
 
-
-
-
-
-
-Cappos                    Expires March 1, 2019                [Page 15]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
 5.3.2.1.  Directing installation of images on vehicles
 
    A Director repository MUST conform to the following six-step process
@@ -854,6 +1337,14 @@ Internet-Draft                   UPTANE                      August 2018
    2.  Using the vehicle identifier, the Director queries its inventory
        database (as described in Section 5.3.2.2) for relevant
        information about each ECU in the vehicle.
+
+
+
+
+Cappos                    Expires March 1, 2019                [Page 24]
+
+Internet-Draft                   UPTANE                      August 2018
+
 
    3.  The Director checks the manifest for accuracy compared to the
        information in the inventory database.  If any of the required
@@ -888,16 +1379,6 @@ Internet-Draft                   UPTANE                      August 2018
        It then sends this metadata to the primary as described in
        Section 5.4.2.3.
 
-
-
-
-
-
-Cappos                    Expires March 1, 2019                [Page 16]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
 5.3.2.2.  Inventory Database
 
    The Director SHALL use a private inventory database to store
@@ -912,6 +1393,14 @@ Internet-Draft                   UPTANE                      August 2018
       *  A unique identifier (such as a VIN)
 
    o  Per ECU:
+
+
+
+
+Cappos                    Expires March 1, 2019                [Page 25]
+
+Internet-Draft                   UPTANE                      August 2018
+
 
       *  A unique identifier (such as a serial number)
 
@@ -942,18 +1431,6 @@ Internet-Draft                   UPTANE                      August 2018
    communicate with it.  This communication MAY occur over FTP, FTPS,
    SFTP, HTTP, or HTTPS.
 
-
-
-
-
-
-
-
-Cappos                    Expires March 1, 2019                [Page 17]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
 5.4.  In-vehicle implementation requirements
 
    An Uptane-compliant ECU SHALL be able to download and verify the
@@ -973,6 +1450,14 @@ Internet-Draft                   UPTANE                      August 2018
    before installing an image or making it available to other ECUs.  A
    primary ECU MUST perform full verification (Section 5.4.4.2).  A
    secondary ECU SHOULD perform full verification if possible, and MUST
+
+
+
+Cappos                    Expires March 1, 2019                [Page 26]
+
+Internet-Draft                   UPTANE                      August 2018
+
+
    perform full verification if it is safety-critical.  If it is not
    safety-critical, it MAY perform partial verification
    (Section 5.4.4.1) instead.
@@ -1002,14 +1487,6 @@ Internet-Draft                   UPTANE                      August 2018
        either a symmetric key or an asymmetric key.  If it is an
        asymmetric key, there MAY be separate keys for encryption and
        signing.  For the purposes of this standard, the set of private
-
-
-
-Cappos                    Expires March 1, 2019                [Page 18]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
        keys that an ECU uses is referred to as the ECU key (singular),
        even if it is actually multiple keys used for different purposes.
 
@@ -1028,6 +1505,14 @@ Internet-Draft                   UPTANE                      August 2018
    4.  Download and verify images (Section 5.4.2.4)
 
    5.  Send latest time to secondaries (Section 5.4.2.5)
+
+
+
+
+Cappos                    Expires March 1, 2019                [Page 27]
+
+Internet-Draft                   UPTANE                      August 2018
+
 
    6.  Send metadata to secondaries (Section 5.4.2.6)
 
@@ -1058,14 +1543,6 @@ Internet-Draft                   UPTANE                      August 2018
    ECUs, then send them to the time server to fetch the current time.
    The time server responds as described in Section 5.3.3, providing a
    cryptographic attestation of the last known time.  The primary SHALL
-
-
-
-Cappos                    Expires March 1, 2019                [Page 19]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
    verify that the signatures are valid, and that the time the server
    attests is greater than the previous attested time.
 
@@ -1084,6 +1561,14 @@ Internet-Draft                   UPTANE                      August 2018
    There may be several different filenames that all refer to the same
    image binary, as described in Section 5.2.3.  The primary SHALL
    associate each image binary with each of its possible filenames.
+
+
+
+
+Cappos                    Expires March 1, 2019                [Page 28]
+
+Internet-Draft                   UPTANE                      August 2018
+
 
 5.4.2.5.  Send latest time to secondaries
 
@@ -1110,18 +1595,6 @@ Internet-Draft                   UPTANE                      August 2018
    secondary will send the request once it has verified the metadata
    sent in the previous step.
 
-
-
-
-
-
-
-
-Cappos                    Expires March 1, 2019                [Page 20]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
 5.4.3.  Installing images on ECUs
 
    Before installing a new image, an ECU SHALL perform the following
@@ -1142,6 +1615,16 @@ Internet-Draft                   UPTANE                      August 2018
    The ECU SHALL verify the latest downloaded time.  To do so, it must:
 
    1.  Verify that the signatures on the downloaded time are valid,
+
+
+
+
+
+
+Cappos                    Expires March 1, 2019                [Page 29]
+
+Internet-Draft                   UPTANE                      August 2018
+
 
    2.  Verify that the list of nonces/tokens in the downloaded time
        includes the token that the ECU sent in its previous version
@@ -1170,14 +1653,6 @@ Internet-Draft                   UPTANE                      August 2018
    If the ECU does not have secondary storage, it SHALL download the
    latest image from the primary.  (If the ECU has secondary storage, it
    will already have the latest image in its secondary storage as
-
-
-
-Cappos                    Expires March 1, 2019                [Page 21]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
    specified in Section 5.4.2.7, and should skip to the next step.)  The
    ECU MAY first create a backup of its previous working image and store
    it elsewhere (e.g., the primary).
@@ -1197,6 +1672,15 @@ Internet-Draft                   UPTANE                      August 2018
 
    If any part of this step fails, the ECU SHALL jump to the fifth step
    (Section 5.4.3.5).
+
+
+
+
+
+Cappos                    Expires March 1, 2019                [Page 30]
+
+Internet-Draft                   UPTANE                      August 2018
+
 
 5.4.3.4.  Verify image
 
@@ -1225,15 +1709,6 @@ Internet-Draft                   UPTANE                      August 2018
           found, the ECU SHALL decrypt the symmetric key using its ECU
           key, and use the decrypted symmetric key for image decryption.
 
-
-
-
-
-Cappos                    Expires March 1, 2019                [Page 22]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
        *  If the ECU key is asymmetric and there is no symmetric key in
           the target metadata, the ECU SHALL use its ECU key for image
           decryption.
@@ -1254,6 +1729,15 @@ Internet-Draft                   UPTANE                      August 2018
    The ECU SHALL create a version report as described in
    Section 5.2.8.1, and send it to the primary (or simply save it to
    disk, if the ECU is a primary).  The primary SHOULD write the version
+
+
+
+
+Cappos                    Expires March 1, 2019                [Page 31]
+
+Internet-Draft                   UPTANE                      August 2018
+
+
    reports it receives to disk and associate them with the secondaries
    that sent them.
 
@@ -1283,13 +1767,6 @@ Internet-Draft                   UPTANE                      August 2018
        keys specified in the previous root metadata file.  If not,
        return an error code indicating an arbitrary software attack.
 
-
-
-Cappos                    Expires March 1, 2019                [Page 23]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
    4.  Check that the version number in the previous targets metadata
        file, if any, is less than or equal to the version number in this
        targets metadata file.  If not, return an error code indicating a
@@ -1306,6 +1783,16 @@ Internet-Draft                   UPTANE                      August 2018
        an error code.
 
    8.  Return an indicator of success.
+
+
+
+
+
+
+Cappos                    Expires March 1, 2019                [Page 32]
+
+Internet-Draft                   UPTANE                      August 2018
+
 
 5.4.4.2.  Full verification
 
@@ -1339,13 +1826,6 @@ Internet-Draft                   UPTANE                      August 2018
 
         2.   Update to the latest root metadata file.
 
-
-
-Cappos                    Expires March 1, 2019                [Page 24]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
         3.   Let N denote the version number of the latest root metadata
              file (which at first could be the same as the previous root
              metadata file).
@@ -1362,6 +1842,14 @@ Internet-Draft                   UPTANE                      August 2018
              by: (1) a threshold of keys specified in the latest root
              metadata file (version N), and (2) a threshold of keys
              specified in the new root metadata file being validated
+
+
+
+Cappos                    Expires March 1, 2019                [Page 33]
+
+Internet-Draft                   UPTANE                      August 2018
+
+
              (version N+1).  If version N+1 is not signed as required,
              discard it, abort the update cycle, and report the
              signature failure.  On the next update cycle, begin at step
@@ -1393,15 +1881,6 @@ Internet-Draft                   UPTANE                      August 2018
              metadata files.  (Checks for recovery from fast-forward
              attacks [MERCURY].)
 
-
-
-
-
-Cappos                    Expires March 1, 2019                [Page 25]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
    4.   Download and check the timestamp metadata file from the director
         repository:
 
@@ -1419,6 +1898,14 @@ Internet-Draft                   UPTANE                      August 2018
         3.  Check that the version number of the previous timestamp
             metadata file, if any, is less than or equal to the version
             number of this timestamp metadata file.  If the new
+
+
+
+Cappos                    Expires March 1, 2019                [Page 34]
+
+Internet-Draft                   UPTANE                      August 2018
+
+
             timestamp metadata file is older than the trusted timestamp
             metadata file, discard it, abort the update cycle, and
             report the potential rollback attack.  (Checks for a
@@ -1451,13 +1938,6 @@ Internet-Draft                   UPTANE                      August 2018
             and report the failure.  (Checks for a mix-and-match
             attack.)
 
-
-
-Cappos                    Expires March 1, 2019                [Page 26]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
         3.  Check that it has been signed by the threshold of keys
             specified in the latest root metadata file.  If the new
             snapshot metadata file is not signed as required, discard
@@ -1474,6 +1954,14 @@ Internet-Draft                   UPTANE                      August 2018
         5.  Check that the version number the previous snapshot metadata
             file lists for each targets metadata file is less than or
             equal to the its version number in this snapshot metadata
+
+
+
+Cappos                    Expires March 1, 2019                [Page 35]
+
+Internet-Draft                   UPTANE                      August 2018
+
+
             file.  If this condition is not met, discard the new snaphot
             metadadata file, abort the update cycle, and report the
             failure.  (Checks for a rollback attack.)
@@ -1507,13 +1995,6 @@ Internet-Draft                   UPTANE                      August 2018
             either case, the ECU MUST write the file to non-volatile
             storage as FILENAME.EXT.
 
-
-
-Cappos                    Expires March 1, 2019                [Page 27]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
         2.  The hashes (if any), and version number of the new targets
             metadata file MUST match the latest snapshot metadata.  If
             the new targets metadata file does not match, discard it,
@@ -1528,6 +2009,14 @@ Internet-Draft                   UPTANE                      August 2018
             metadata file, if any, is less than or equal to the version
             number of this targets metadata file.  (Checks for a
             rollback attack.)
+
+
+
+
+Cappos                    Expires March 1, 2019                [Page 36]
+
+Internet-Draft                   UPTANE                      August 2018
+
 
         5.  Check that the latest attested time is lower than the
             expiration timestamp in this targets metadata file.  (Checks
@@ -1562,14 +2051,6 @@ Internet-Draft                   UPTANE                      August 2018
             metadata about the image, return the metadata to be checked
             and skip to step 11.3.
 
-
-
-
-Cappos                    Expires March 1, 2019                [Page 28]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
         2.  Recursively search the list of delegations, in order of
             appearance:
 
@@ -1584,6 +2065,14 @@ Internet-Draft                   UPTANE                      August 2018
                 checked and skip to step 11.3.  If metadata about an
                 image is not found in a terminating delegation, return
                 an error code indicating that the image is missing.
+
+
+
+
+Cappos                    Expires March 1, 2019                [Page 37]
+
+Internet-Draft                   UPTANE                      August 2018
+
 
             3.  Otherwise, continue processing the next delegation, if
                 any.  As soon as a delegation is found that contains
@@ -1618,14 +2107,6 @@ Internet-Draft                   UPTANE                      August 2018
         specified in the targets metadata), and verify that its hashes
         match the targets metadata.  (We download up to this number of
         bytes, because in some cases, the exact number is unknown.  This
-
-
-
-Cappos                    Expires March 1, 2019                [Page 29]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
         may happen, for example, if an external program is used to
         compute the root hash of a tree of targets files, and this
         program does not provide the total size of all of these files.)
@@ -1641,6 +2122,14 @@ Internet-Draft                   UPTANE                      August 2018
 
    If any step fails, the ECU MUST return an error code indicating the
    failure.  If a check for a specific type of security attack fails
+
+
+
+Cappos                    Expires March 1, 2019                [Page 38]
+
+Internet-Draft                   UPTANE                      August 2018
+
+
    (e.g. rollback, freeze, arbitrary software, etc.), the ECU SHOULD
    return an error code that indicates the type of attack.
 
@@ -1675,13 +2164,6 @@ Internet-Draft                   UPTANE                      August 2018
               Version 2.1", RFC 3447, DOI 10.17487/RFC3447, February
               2003, <https://www.rfc-editor.org/info/rfc3447>.
 
-
-
-Cappos                    Expires March 1, 2019                [Page 30]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
    [RFC3647]  Chokhani, S., Ford, W., Sabett, R., Merrill, C., and S.
               Wu, "Internet X.509 Public Key Infrastructure Certificate
               Policy and Certification Practices Framework", RFC 3647,
@@ -1695,6 +2177,14 @@ Internet-Draft                   UPTANE                      August 2018
    [RFC4648]  Josefsson, S., "The Base16, Base32, and Base64 Data
               Encodings", RFC 4648, DOI 10.17487/RFC4648, October 2006,
               <https://www.rfc-editor.org/info/rfc4648>.
+
+
+
+
+Cappos                    Expires March 1, 2019                [Page 39]
+
+Internet-Draft                   UPTANE                      August 2018
+
 
    [RFC5756]  Turner, S., Brown, D., Yiu, K., Housley, R., and T. Polk,
               "Updates for RSAES-OAEP and RSASSA-PSS Algorithm
@@ -1724,20 +2214,6 @@ Internet-Draft                   UPTANE                      August 2018
               blob/01726d203c9b9c029d26f6612069ce3180500d9a/
               tap5.md#downloading-metadata-and-target-files>.
 
-
-
-
-
-
-
-
-
-
-Cappos                    Expires March 1, 2019                [Page 31]
-
-Internet-Draft                   UPTANE                      August 2018
-
-
    [TUF-spec]
               Samuel, J., Mathewson, N., Condra, G., Diaz, V.,
               Kuppusamy, T., Awwad, S., Tobias, S., Wright, J., Mehnert,
@@ -1758,6 +2234,13 @@ Internet-Draft                   UPTANE                      August 2018
    [ED25519]  Bernstein, D., Duif, N., Lange, T., Schwabe, P., and B-Y.
               Yang, ""High-Speed High-Security Signatures", Journal of
               Cryptographic Engineering, Vol. 2", September 2011.
+
+
+
+Cappos                    Expires March 1, 2019                [Page 40]
+
+Internet-Draft                   UPTANE                      August 2018
+
 
    [IN-TOTO]  "in-toto: A framework to secure the integrity of software
               supply chains", October 2018,
@@ -1785,14 +2268,11 @@ Internet-Draft                   UPTANE                      August 2018
               your-average-car-lot-more-code-driven-than-you-
               think/86437052/>.
 
+6.3.  URIs
 
+   [1] https://tools.ietf.org/html/rfc3447#page-29
 
-
-
-Cappos                    Expires March 1, 2019                [Page 32]
-
-Internet-Draft                   UPTANE                      August 2018
-
+   [2] https://ed25519.cr.yp.to/
 
 Author's Address
 
@@ -1813,36 +2293,4 @@ Author's Address
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Cappos                    Expires March 1, 2019                [Page 33]
+Cappos                    Expires March 1, 2019                [Page 41]
